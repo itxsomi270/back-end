@@ -11,15 +11,14 @@ app.use(cors());
 app.post('/posts', (req, res) => {
   try {
     const postData = req.body;
-    console.log('Received post data:', req.body);
-    res.send('req recieved')
-  }
+    console.log('Received post data:', postData);
 
-  catch (error) {
-    console.log(error.message)
+    res.status(200).json({ message: 'Request received successfully' });
+  } catch (error) {
+    console.error('Error processing request:', error.message);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
-
 
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
