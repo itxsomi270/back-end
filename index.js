@@ -1,3 +1,4 @@
+// start the boiler-plate code and import dependencies
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
@@ -53,7 +54,6 @@ app.get('/posts', async (req, res) => {
   }
 });
 
-// DELETE endpoint to delete a post by its ID
 app.delete('/posts/:id', async (req, res) => {
   try {
     const postId = req.params.id;
@@ -70,7 +70,6 @@ app.delete('/posts/:id', async (req, res) => {
   }
 });
 
-// PUT endpoint to update a post by its ID
 app.put('/posts/:id', async (req, res) => {
   try {
     const postId = req.params.id;
