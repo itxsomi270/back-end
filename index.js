@@ -53,6 +53,43 @@ app.get('/posts', async (req, res) => {
   }
 });
 
+// DELETE endpoint to delete a post by its ID
+app.delete('/posts/:id', async (req, res) => {
+  try {
+    const postId = req.params.id;
+    const deletedPost = await Post.findByIdAndDelete(postId);
+
+    if (!deletedPost) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+
+    res.status(200).json({ message: 'Post deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting post:', error.message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// PUT endpoint to update a post by its ID
+app.put('/posts/:id', async (req, res) => {
+  try {
+    const postId = req.params.id;
+    const updatedData = req.body;
+
+    const updatedPost = await Post.findByIdAndUpdate(postId, updatedData, { new: true });
+
+    if (!updatedPost) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+
+    res.status(200).json({ message: 'Post updated successfully', updatedPost });
+  } catch (error) {
+    console.error('Error updating post:', error.message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
 });
