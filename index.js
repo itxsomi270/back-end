@@ -1,4 +1,3 @@
-// start the boiler-plate code and import dependencies
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
@@ -27,6 +26,57 @@ const postSchema = mongoose.Schema({
 });
 
 const Post = mongoose.model('Post', postSchema);
+
+const userSchema = mongoose.Schema({
+  name: {
+    type: String,
+    required: true
+  },
+  email: {
+    type: String,
+    required: true
+  },
+  password: {
+    type: String,
+    required: true
+  }
+});
+
+const User = mongoose.model('User', userSchema);
+
+app.post('/register', async (req, res) => {
+  try {
+    const userData = req.body;
+    console.log('Received user data:', userData);
+    
+    const newUser = new User(userData);
+    await newUser.save();
+
+    console.log('User registered successfully');
+    res.status(200).json({ message: 'User registered successfully' });
+  } catch (error) {
+    console.error('Error processing registration:', error.message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.post('/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    
+    const user = await User.findOne({ email, password });
+
+    if (!user) {
+      return res.status(401).json({ error: 'User not found' });
+    }
+
+    console.log('User logged in successfully');
+    res.status(200).json({ message: 'User logged in successfully', user });
+  } catch (error) {
+    console.error('Error processing login:', error.message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 app.post('/posts', async (req, res) => {
   try {
