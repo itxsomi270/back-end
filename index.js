@@ -1,144 +1,83 @@
 const express = require('express');
-const bodyParser = require('body-parser');
-const cors = require('cors');
-const mongoose = require('mongoose');
-
+const { MongoClient } = require('mongodb');
+const cors = require('cors'); 
+// Removed bcrypt and jwt imports as they are no longer needed
 const app = express();
-const PORT = process.env.PORT || 5000;
+const port = 4000;
 
-app.use(bodyParser.json());
-app.use(cors({ origin: 'http://localhost:3000' }));
+app.use(express.json());
+app.use(cors());
 
-mongoose.connect('mongodb://127.0.0.1:27017/posts', {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-}).then(() => {
-  console.log('MongoDB connected');
-}).catch(error => {
-  console.error('MongoDB connection error:', error);
-});
+const uri = 'mongodb://localhost:27017'; 
+const client = new MongoClient(uri);
+const dbName = 'Hostel';
+const collectionName = 'signup';
 
-const postSchema = mongoose.Schema({
-  content: {
-    type: String,
-    required: true
-  },
-});
+async function run() {
+    try {
+        await client.connect();
+        console.log('Connected to MongoDB');
 
-const Post = mongoose.model('Post', postSchema);
+        const database = client.db(dbName);
+        const collection = database.collection(collectionName);
 
-const userSchema = mongoose.Schema({
-  name: {
-    type: String,
-    required: true
-  },
-  email: {
-    type: String,
-    required: true
-  },
-  password: {
-    type: String,
-    required: true
-  }
-});
+        // Route to handle POST requests to /signup
+        app.post('/signup', async (req, res) => {
+            console.log("Sign-up request received");
+            const { email, password, ...rest } = req.body;
 
-const User = mongoose.model('User', userSchema);
+            try {
+                // Insert data into MongoDB collection without password hashing
+                const result = await collection.insertOne({ email, password, ...rest });
+                console.log(`Data inserted with _id: ${result.insertedId}`);
 
-app.post('/register', async (req, res) => {
-  try {
-    const userData = req.body;
-    console.log('Received user data:', userData);
-    
-    const newUser = new User(userData);
-    await newUser.save();
+                res.status(201).json({ 
+                    message: 'Sign-up data received and stored successfully!' 
+                });
+            } catch (error) {
+                console.error('Error inserting data into MongoDB', error);
+                res.status(500).json({ message: 'Failed to store data in MongoDB' });
+            }
+        });
 
-    console.log('User registered successfully');
-    res.status(200).json({ message: 'User registered successfully' });
-  } catch (error) {
-    console.error('Error processing registration:', error.message);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+        // Route to handle POST requests to /login
+        app.post('/login', async (req, res) => {
+            console.log("Login request received");
+            const { email, password } = req.body;
 
-app.post('/login', async (req, res) => {
-  try {
-    const { email, password } = req.body;
-    
-    const user = await User.findOne({ email, password });
+            try {
+                // Find user by email
+                const user = await collection.findOne({ email });
 
-    if (!user) {
-      return res.status(401).json({ error: 'User not found' });
+                if (!user) {
+                    console.log(`User with email ${email} not found`);
+                    return res.status(401).json({ error: 'Invalid email or password' });
+                }
+
+                // Compare provided password with the one in the database
+                if (password !== user.password) {
+                    console.log('Password does not match');
+                    return res.status(401).json({ error: 'Invalid email or password' });
+                }
+
+                // Return user data excluding the password
+                const { password: _, ...userData } = user; // Exclude password from response
+                res.json({ 
+                    message: 'Login successful',
+                    user: userData 
+                });
+            } catch (error) {
+                console.error('Error logging in:', error);
+                res.status(500).json({ error: 'Internal server error' });
+            }
+        });
+
+        app.listen(port, () => {
+            console.log(`Server running at http://localhost:${port}`);
+        });
+    } catch (err) {
+        console.error('Failed to connect to MongoDB', err);
     }
+}
 
-    console.log('User logged in successfully');
-    res.status(200).json({ message: 'User logged in successfully', user });
-  } catch (error) {
-    console.error('Error processing login:', error.message);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.post('/posts', async (req, res) => {
-  try {
-    const postData = req.body;
-    console.log('Received post data:', postData);
-    
-    const newPost = new Post(postData);
-    await newPost.save();
-
-    console.log('Data saved to MongoDB');
-    res.status(200).json({ message: 'Post created successfully' });
-  } catch (error) {
-    console.error('Error processing request:', error.message);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.get('/posts', async (req, res) => {
-  try {
-    const postDataArray = await Post.find({});
-    res.status(200).json(postDataArray);
-  } catch (error) {
-    console.error('Error reading from MongoDB:', error.message);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.delete('/posts/:id', async (req, res) => {
-  try {
-    const postId = req.params.id;
-    const deletedPost = await Post.findByIdAndDelete(postId);
-
-    if (!deletedPost) {
-      return res.status(404).json({ error: 'Post not found' });
-    }
-
-    res.status(200).json({ message: 'Post deleted successfully' });
-  } catch (error) {
-    console.error('Error deleting post:', error.message);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.put('/posts/:id', async (req, res) => {
-  try {
-    const postId = req.params.id;
-    const updatedData = req.body;
-
-    const updatedPost = await Post.findByIdAndUpdate(postId, updatedData, { new: true });
-
-    if (!updatedPost) {
-      return res.status(404).json({ error: 'Post not found' });
-    }
-
-    res.status(200).json({ message: 'Post updated successfully', updatedPost });
-  } catch (error) {
-    console.error('Error updating post:', error.message);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-
-app.listen(PORT, () => {
-  console.log(`Server is running on http://localhost:${PORT}`);
-});
+run().catch(console.dir);
