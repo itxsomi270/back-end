@@ -2,6 +2,7 @@ const express = require("express");
 const { MongoClient } = require("mongodb");
 const cors = require("cors");
 const multer = require("multer"); // Middleware for handling file uploads
+const { ObjectId } = require('mongodb'); // Import ObjectId from MongoDB
 
 const app = express();
 const port = 4000;
@@ -139,18 +140,22 @@ async function run() {
     );
 
     // Route to fetch all properties (GET request to /get-properties)
-    app.get("/get-properties", async (req, res) => {
+    app.get('/get-property/:id', async (req, res) => {
       try {
-        const properties = await rentSpaceCollection.find().toArray();
-        res.status(200).json(properties);
+        const propertyId = req.params.id;  // Property ID from the URL params
+        console.log('Fetching property with ID:', propertyId); // Debug log
+    
+        // Convert the propertyId to ObjectId
+        const property = await rentSpaceCollection.findOne({ _id: new ObjectId(propertyId) });
+    
+        if (property) {
+          res.status(200).json(property);
+        } else {
+          res.status(404).json({ message: 'Property not found' });
+        }
       } catch (error) {
-        console.error("Error fetching properties:", error);
-        res
-          .status(500)
-          .json({
-            message: "Failed to fetch properties from MongoDB",
-            details: error.message,
-          });
+        console.error('Error fetching property:', error);
+        res.status(500).json({ message: 'Failed to fetch property', error: error.message });
       }
     });
 
