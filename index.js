@@ -59,10 +59,10 @@ async function run() {
         });
 
         // Route to handle POST requests to /rent-your-space (property listing)
-        app.post('/rent-your-space', upload.single('image'), async (req, res) => {
+        app.post('/rent-your-space', upload.array('images', 5), async (req, res) => {
             const { title, description, location, price, ownerEmail } = req.body;
-            const image = req.file; // Multer stores the file in req.file
-            
+            const images = req.files; // This will be an array of uploaded images
+
             try {
                 const rentalData = {
                     title,
@@ -70,20 +70,19 @@ async function run() {
                     location,
                     price,
                     ownerEmail,
-                    image: image ? { data: image.buffer, contentType: image.mimetype } : undefined, // Save image data to MongoDB
+                    images: images ? images.map(image => ({ data: image.buffer, contentType: image.mimetype })) : undefined, // Save multiple image data to MongoDB
                 };
-        
+
                 const result = await rentSpaceCollection.insertOne(rentalData);
                 res.status(201).json({
                     message: 'Rental space data received and stored successfully!',
                     rentalId: result.insertedId
                 });
             } catch (error) {
-                console.error('Error inserting rental space data into MongoDB:', error);  // Log the full error message
+                console.error('Error inserting rental space data into MongoDB:', error);
                 res.status(500).json({ message: 'Failed to store rental space data in MongoDB', error: error.message });
             }
         });
-        
 
         // Route to fetch all properties (GET request to /get-properties)
         app.get('/get-properties', async (req, res) => {
