@@ -1,8 +1,7 @@
 const express = require("express");
-const { MongoClient } = require("mongodb");
+const { MongoClient, ObjectId } = require("mongodb");
 const cors = require("cors");
-const multer = require("multer"); 
-const { ObjectId } = require('mongodb'); 
+const multer = require("multer");
 
 const app = express();
 const port = 4000;
@@ -10,20 +9,17 @@ const port = 4000;
 app.use(express.json());
 app.use(cors());
 
-// MongoDB setup
 const uri = "mongodb://localhost:27017";
 const client = new MongoClient(uri);
-const dbName = "Hostel"; 
-const signupCollectionName = "signup"; 
-const rentSpaceCollectionName = "rent-your-space"; 
+const dbName = "Hostel";
+const signupCollectionName = "signup";
+const rentSpaceCollectionName = "rent-your-space";
 
-// Configure multer for file handling (using memory storage)
-const storage = multer.memoryStorage(); 
-const upload = multer({ storage }); 
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
 
 async function run() {
   try {
-    // Connect to MongoDB
     await client.connect();
     console.log("Connected to MongoDB");
 
@@ -31,30 +27,19 @@ async function run() {
     const signupCollection = database.collection(signupCollectionName);
     const rentSpaceCollection = database.collection(rentSpaceCollectionName);
 
-    // Route to handle POST requests to /signup (user registration)
+    // API: User Signup
     app.post("/signup", async (req, res) => {
       const { email, password, ...rest } = req.body;
       try {
-        const result = await signupCollection.insertOne({
-          email,
-          password,
-          ...rest,
-        });
-        res
-          .status(201)
-          .json({ message: "Sign-up data received and stored successfully!" });
+        const result = await signupCollection.insertOne({ email, password, ...rest });
+        res.status(201).json({ message: "Signup successful!" });
       } catch (error) {
         console.error("Error inserting sign-up data:", error);
-        res
-          .status(500)
-          .json({
-            message: "Failed to store sign-up data in MongoDB",
-            error: error.message,
-          });
+        res.status(500).json({ message: "Failed to store signup data", error: error.message });
       }
     });
 
-    // Route to handle POST requests to /login (user authentication)
+    // API: User Login
     app.post("/login", async (req, res) => {
       const { email, password } = req.body;
       try {
@@ -62,22 +47,21 @@ async function run() {
         if (!user || password !== user.password) {
           return res.status(401).json({ error: "Invalid email or password" });
         }
-        const { password: _, ...userData } = user; // Remove the password from the response
+        const { password: _, ...userData } = user;
         res.json({ message: "Login successful", user: userData });
       } catch (error) {
         console.error("Error logging in:", error);
-        res
-          .status(500)
-          .json({ error: "Internal server error", details: error.message });
+        res.status(500).json({ error: "Internal server error", details: error.message });
       }
     });
 
-    // Route to handle POST requests to /rent-your-space (property listing)
-    app.post(
-      "/rent-your-space",
-      upload.array("images", 5),
-      async (req, res) => {
-        const {
+    // API: Add Property
+    app.post("/rent-your-space", upload.array("images", 5), async (req, res) => {
+      const { title, description, location, price, ownerEmail, bedrooms, bathrooms, entranceType, gas, internet, water, electricity, garage, kitchen } = req.body;
+      const images = req.files;
+
+      try {
+        const rentalData = {
           title,
           description,
           location,
@@ -92,74 +76,45 @@ async function run() {
           electricity,
           garage,
           kitchen,
-        } = req.body;
-        const images = req.files; // This will be an array of uploaded images
+          images: images ? images.map((image) => ({ data: image.buffer, contentType: image.mimetype })) : undefined,
+        };
 
-        try {
-          const rentalData = {
-            title,
-            description,
-            location,
-            price,
-            ownerEmail,
-            bedrooms,
-            bathrooms,
-            entranceType,
-            gas,
-            internet,
-            water,
-            electricity,
-            garage,
-            kitchen,
-            images: images
-              ? images.map((image) => ({
-                  data: image.buffer,
-                  contentType: image.mimetype,
-                }))
-              : undefined, // Save multiple image data to MongoDB
-          };
-
-          const result = await rentSpaceCollection.insertOne(rentalData);
-          res.status(201).json({
-            message: "Rental space data received and stored successfully!",
-            rentalId: result.insertedId,
-          });
-        } catch (error) {
-          console.error(
-            "Error inserting rental space data into MongoDB:",
-            error
-          );
-          res
-            .status(500)
-            .json({
-              message: "Failed to store rental space data in MongoDB",
-              error: error.message,
-            });
-        }
-      }
-    );
-
-    // Route to fetch all properties (GET request to /get-properties)
-    app.get('/get-property/:id', async (req, res) => {
-      try {
-        const propertyId = req.params.id;  // Property ID from the URL params
-        console.log('Fetching property with ID:', propertyId); // Debug log
-    
-        // Convert the propertyId to ObjectId
-        const property = await rentSpaceCollection.findOne({ _id: new ObjectId(propertyId) });
-    
-        if (property) {
-          res.status(200).json(property);
-        } else {
-          res.status(404).json({ message: 'Property not found' });
-        }
+        const result = await rentSpaceCollection.insertOne(rentalData);
+        res.status(201).json({ message: "Rental space added!", rentalId: result.insertedId });
       } catch (error) {
-        console.error('Error fetching property:', error);
-        res.status(500).json({ message: 'Failed to fetch property', error: error.message });
+        console.error("Error inserting rental data:", error);
+        res.status(500).json({ message: "Failed to store rental space data", error: error.message });
       }
     });
 
-    // Start the server
+    // API: Fetch All Properties
+    app.get("/get-properties", async (req, res) => {
+      try {
+        const properties = await rentSpaceCollection.find().toArray();
+        res.status(200).json(properties);
+      } catch (error) {
+        console.error("Error fetching properties:", error);
+        res.status(500).json({ message: "Failed to fetch properties 111", details: error.message });
+      }
+    });
+
+    // API: Fetch Property by ID
+    app.get("/get-property/:id", async (req, res) => {
+      try {
+        const propertyId = req.params.id;
+        const property = await rentSpaceCollection.findOne({ _id: new ObjectId(propertyId) });
+
+        if (property) {
+          res.status(200).json(property);
+        } else {
+          res.status(404).json({ message: "Property not found" });
+        }
+      } catch (error) {
+        console.error("Error fetching property:", error);
+        res.status(500).json({ message: "Failed to fetch property", error: error.message });
+      }
+    });
+
     app.listen(port, () => {
       console.log(`Server running at http://localhost:${port}`);
     });
@@ -168,5 +123,4 @@ async function run() {
   }
 }
 
-// Run the server
 run().catch(console.dir);
