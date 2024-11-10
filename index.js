@@ -1,8 +1,8 @@
 const express = require("express");
 const { MongoClient } = require("mongodb");
 const cors = require("cors");
-const multer = require("multer"); // Middleware for handling file uploads
-const { ObjectId } = require('mongodb'); // Import ObjectId from MongoDB
+const multer = require("multer"); 
+const { ObjectId } = require('mongodb'); 
 
 const app = express();
 const port = 4000;
@@ -13,13 +13,13 @@ app.use(cors());
 // MongoDB setup
 const uri = "mongodb://localhost:27017";
 const client = new MongoClient(uri);
-const dbName = "Hostel"; // The database name
-const signupCollectionName = "signup"; // The signup collection name
-const rentSpaceCollectionName = "rent-your-space"; // The rent-your-space collection name
+const dbName = "Hostel"; 
+const signupCollectionName = "signup"; 
+const rentSpaceCollectionName = "rent-your-space"; 
 
 // Configure multer for file handling (using memory storage)
-const storage = multer.memoryStorage(); // Store files in memory for easy access
-const upload = multer({ storage }); // Configure multer to use memory storage
+const storage = multer.memoryStorage(); 
+const upload = multer({ storage }); 
 
 async function run() {
   try {
